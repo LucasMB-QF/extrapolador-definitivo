@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extrapolador Excel con Efecto Elástico</title>
+    <title>Extrapolador Avanzado para Excel y CSV</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pyodide@0.23.4/pyodide.js"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -19,6 +19,8 @@
             --horizontal: #1abc9c;
             --vertical: #f1c40f;
             --elastic: #e67e22;
+            --excel: #217346;
+            --csv: #f39c12;
         }
         
         * {
@@ -31,7 +33,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
             color: var(--dark);
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+            background: linear-gradient(135deg, #1a2a6c, #2c3e50, #1a2a6c);
             min-height: 100vh;
             padding: 20px;
             overflow-x: hidden;
@@ -40,7 +42,7 @@
         .container {
             max-width: 1400px;
             margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.97);
             border-radius: 15px;
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
             overflow: hidden;
@@ -221,8 +223,12 @@
             background: linear-gradient(to right, #3498db, #2980b9);
         }
         
-        #downloadBtn {
-            background: linear-gradient(to right, #2ecc71, #27ae60);
+        #downloadCsvBtn {
+            background: linear-gradient(to right, #f39c12, #e67e22);
+        }
+        
+        #downloadExcelBtn {
+            background: linear-gradient(to right, #217346, #27ae60);
         }
         
         #processExcelBtn {
@@ -570,32 +576,77 @@
             gap: 15px;
             margin-top: 15px;
         }
+        
+        .file-type-indicator {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .excel-indicator {
+            background: var(--excel);
+            color: white;
+        }
+        
+        .csv-indicator {
+            background: var(--csv);
+            color: white;
+        }
+        
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #e0e0e0;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            background: var(--secondary);
+            color: white;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1><i class="fas fa-file-excel"></i> Extrapolador Excel con Python</h1>
-            <p class="subtitle">Aplica deformaciones avanzadas manteniendo macros y fórmulas de Excel</p>
+            <h1><i class="fas fa-file-waveform"></i> Extrapolador Avanzado</h1>
+            <p class="subtitle">Procesa archivos Excel y CSV con deformaciones avanzadas de curvas</p>
         </header>
         
         <div class="main-content">
             <div class="controls">
                 <div class="instructions">
-                    <h3><i class="fas fa-lightbulb"></i> ¡Python en el navegador!</h3>
+                    <h3><i class="fas fa-lightbulb"></i> ¡Todo en uno!</h3>
                     <ul>
-                        <li>Sube tu archivo Excel (.xlsm) con macros</li>
-                        <li>Selecciona la hoja y columna a deformar</li>
+                        <li>Sube archivos Excel (.xlsm) o CSV</li>
+                        <li>Para Excel: mantiene macros y fórmulas</li>
+                        <li>Para CSV: procesamiento directo y rápido</li>
                         <li>Ajusta los parámetros de deformación</li>
-                        <li><strong>Mantén todas las fórmulas y macros intactas</strong></li>
-                        <li>Descarga el archivo modificado</li>
+                        <li>Visualiza los cambios en tiempo real</li>
+                        <li>Descarga los resultados en el formato que prefieras</li>
                     </ul>
                 </div>
                 
-                <div class="control-group">
-                    <h2><i class="fas fa-file-upload"></i> Carga de Excel</h2>
+                <div class="tab-container">
+                    <div class="tab active" id="excelTab">Excel (.xlsm)</div>
+                    <div class="tab" id="csvTab">CSV</div>
+                </div>
+                
+                <div class="control-group" id="excelSection">
+                    <h2><i class="fas fa-file-excel"></i> Carga de Excel</h2>
                     <div class="input-group">
-                        <label for="excelFile"><i class="fas fa-file-excel"></i> Seleccionar archivo Excel (.xlsm):</label>
+                        <label for="excelFile"><i class="fas fa-file-export"></i> Seleccionar archivo Excel (.xlsm):</label>
                         <input type="file" id="excelFile" accept=".xlsm">
                     </div>
                     
@@ -625,12 +676,26 @@
                         </div>
                     </div>
                     
-                    <div class="progress-container" id="progressContainer">
-                        <div class="progress-bar" id="progressBar"></div>
+                    <div class="progress-container" id="excelProgressContainer">
+                        <div class="progress-bar" id="excelProgressBar"></div>
                     </div>
                     <button id="loadExcelBtn"><i class="fas fa-file-import"></i> Cargar Datos de Excel</button>
-                    <div id="loadStatus" class="status-message">Esperando datos...</div>
                 </div>
+                
+                <div class="control-group" id="csvSection" style="display: none;">
+                    <h2><i class="fas fa-file-csv"></i> Carga de CSV</h2>
+                    <div class="input-group">
+                        <label for="csvFile"><i class="fas fa-file-import"></i> Seleccionar archivo CSV:</label>
+                        <input type="file" id="csvFile" accept=".csv">
+                    </div>
+                    
+                    <div class="progress-container" id="csvProgressContainer">
+                        <div class="progress-bar" id="csvProgressBar"></div>
+                    </div>
+                    <button id="loadCsvBtn"><i class="fas fa-file-import"></i> Cargar Datos CSV</button>
+                </div>
+                
+                <div id="loadStatus" class="status-message">Seleccione un archivo para comenzar</div>
                 
                 <div class="control-group">
                     <h2><i class="fas fa-sliders-h"></i> Ajuste de Temperatura</h2>
@@ -655,8 +720,8 @@
                 
                 <div class="control-group">
                     <h2><i class="fas fa-file-download"></i> Exportar Resultados</h2>
-                    <button id="downloadBtn"><i class="fas fa-download"></i> Descargar CSV Extrapolado</button>
-                    <button id="processExcelBtn"><i class="fas fa-file-excel"></i> Procesar Excel</button>
+                    <button id="downloadCsvBtn"><i class="fas fa-file-csv"></i> Descargar CSV</button>
+                    <button id="downloadExcelBtn"><i class="fas fa-file-excel"></i> Descargar Excel Modificado</button>
                     <div id="downloadStatus" class="status-message"></div>
                 </div>
                 
@@ -757,7 +822,7 @@
         </div>
         
         <footer>
-            <p><i class="fas fa-info-circle"></i> Extrapolador Excel con Python | Mantiene macros y fórmulas | Pyodide 0.23.4</p>
+            <p><i class="fas fa-info-circle"></i> Extrapolador Avanzado para Excel y CSV | Procesa cualquier tipo de datos</p>
         </footer>
     </div>
 
@@ -778,31 +843,37 @@
         let autoAdjust = true;
         let pyodide = null;
         let excelFile = null;
+        let csvFile = null;
         let selectedSheet = "";
         let selectedColumn = "";
         let excelData = {};
+        let currentFileType = "excel"; // "excel" o "csv"
 
         // Elementos del DOM
         const excelFileInput = document.getElementById('excelFile');
+        const csvFileInput = document.getElementById('csvFile');
         const sheetSelect = document.getElementById('sheetSelect');
         const columnSelect = document.getElementById('columnSelect');
         const loadExcelBtn = document.getElementById('loadExcelBtn');
+        const loadCsvBtn = document.getElementById('loadCsvBtn');
         const minTempInput = document.getElementById('minTemp');
         const maxTempInput = document.getElementById('maxTemp');
         const minTempRange = document.getElementById('minTempRange');
         const maxTempRange = document.getElementById('maxTempRange');
         const minTempValue = document.getElementById('minTempValue');
         const maxTempValue = document.getElementById('maxTempValue');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const processExcelBtn = document.getElementById('processExcelBtn');
+        const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+        const downloadExcelBtn = document.getElementById('downloadExcelBtn');
         const originalMinElem = document.getElementById('originalMin');
         const originalMaxElem = document.getElementById('originalMax');
         const newMinElem = document.getElementById('newMin');
         const newMaxElem = document.getElementById('newMax');
         const loadStatus = document.getElementById('loadStatus');
         const downloadStatus = document.getElementById('downloadStatus');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressBar = document.getElementById('progressBar');
+        const excelProgressContainer = document.getElementById('excelProgressContainer');
+        const excelProgressBar = document.getElementById('excelProgressBar');
+        const csvProgressContainer = document.getElementById('csvProgressContainer');
+        const csvProgressBar = document.getElementById('csvProgressBar');
         const shapeDeformationSlider = document.getElementById('shapeDeformation');
         const horizontalDeformationSlider = document.getElementById('horizontalDeformation');
         const verticalDeformationSlider = document.getElementById('verticalDeformation');
@@ -814,6 +885,10 @@
         const smoothCurveCheckbox = document.getElementById('smoothCurve');
         const autoAdjustCheckbox = document.getElementById('autoAdjust');
         const pyodideLoading = document.getElementById('pyodideLoading');
+        const excelTab = document.getElementById('excelTab');
+        const csvTab = document.getElementById('csvTab');
+        const excelSection = document.getElementById('excelSection');
+        const csvSection = document.getElementById('csvSection');
 
         // Inicializar Python con Pyodide
         async function initializePyodide() {
@@ -856,6 +931,8 @@
             try {
                 loadStatus.textContent = "Procesando Excel con Python...";
                 loadStatus.className = "status-message warning";
+                excelProgressContainer.style.display = 'block';
+                excelProgressBar.style.width = '0%';
                 
                 // Leer archivo como ArrayBuffer
                 const arrayBuffer = await excelFile.arrayBuffer();
@@ -865,40 +942,51 @@
                 pyodide.FS.writeFile(excelFile.name, bytes);
                 
                 // Ejecutar script Python para leer el Excel
+                excelProgressBar.style.width = '30%';
                 const result = pyodide.runPython(`
                     from openpyxl import load_workbook
+                    from openpyxl.utils import get_column_letter
                     from js import document, console
                     
                     filename = '${excelFile.name}'
-                    wb = load_workbook(filename, keep_vba=True)
+                    wb = load_workbook(filename, keep_vba=True, data_only=True)
                     sheets = list(wb.sheetnames)
                     
-                    # Almacenar datos de todas las hojas
                     excel_data = {}
                     for sheet_name in sheets:
                         ws = wb[sheet_name]
                         sheet_data = {}
                         
-                        # Leer todas las columnas con datos
-                        for col in ws.iter_cols(min_row=2):
-                            col_letter = col[0].column_letter
+                        # Iterar por todas las columnas con datos
+                        for col_idx in range(1, ws.max_column + 1):
+                            col_letter = get_column_letter(col_idx)
                             col_values = []
+                            has_data = False
                             
-                            for cell in col:
+                            for row_idx in range(2, ws.max_row + 1):
+                                cell = ws.cell(row=row_idx, column=col_idx)
+                                
+                                # Saltar celdas vacías
                                 if cell.value is None:
-                                    break
-                                col_values.append(cell.value)
+                                    continue
+                                
+                                # Solo procesar celdas con valores numéricos
+                                if isinstance(cell.value, (int, float)):
+                                    col_values.append(cell.value)
+                                    has_data = True
                             
-                            sheet_data[col_letter] = col_values
+                            if has_data:
+                                sheet_data[col_letter] = col_values
                         
                         excel_data[sheet_name] = sheet_data
                     
-                    # Devolver datos
                     {
                         'sheets': sheets,
                         'excel_data': excel_data
                     }
                 `);
+                
+                excelProgressBar.style.width = '70%';
                 
                 // Guardar datos
                 excelData = result.excel_data.toJs();
@@ -914,6 +1002,7 @@
                 
                 loadStatus.textContent = "Excel cargado correctamente";
                 loadStatus.className = "status-message success";
+                excelProgressBar.style.width = '100%';
                 
                 // Manejar selección de hoja
                 sheetSelect.onchange = function() {
@@ -939,11 +1028,93 @@
                     }
                 };
                 
+                setTimeout(() => {
+                    excelProgressContainer.style.display = 'none';
+                }, 1000);
+                
             } catch (error) {
                 loadStatus.textContent = "Error al procesar Excel: " + error.message;
                 loadStatus.className = "status-message error";
                 console.error(error);
+                excelProgressContainer.style.display = 'none';
             }
+        }
+
+        // Cargar archivo CSV
+        function loadCSV() {
+            const file = csvFileInput.files[0];
+            if (!file) {
+                loadStatus.textContent = "Error: Por favor, selecciona un archivo CSV";
+                loadStatus.className = "status-message error";
+                return;
+            }
+            
+            csvProgressContainer.style.display = 'block';
+            csvProgressBar.style.width = '0%';
+            loadStatus.textContent = "Procesando datos CSV...";
+            loadStatus.className = "status-message warning";
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    
+                    // Procesar líneas del CSV
+                    const lines = content.split('\n');
+                    originalData = [];
+                    
+                    // Procesar cada línea
+                    for (let i = 0; i < lines.length; i++) {
+                        // Actualizar barra de progreso
+                        const progress = Math.round((i / lines.length) * 100);
+                        csvProgressBar.style.width = `${progress}%`;
+                        
+                        const line = lines[i].trim();
+                        if (!line) continue;
+                        
+                        // Convertir coma decimal a punto
+                        const valueStr = line.replace(',', '.');
+                        const value = parseFloat(valueStr);
+                        
+                        if (!isNaN(value)) {
+                            originalData.push(value);
+                        }
+                    }
+                    
+                    if (originalData.length === 0) {
+                        throw new Error('El archivo no contiene datos válidos. Usa números con coma decimal (ej: 23,5)');
+                    }
+                    
+                    // Calcular min y max originales
+                    minOriginal = Math.min(...originalData);
+                    maxOriginal = Math.max(...originalData);
+                    
+                    // Establecer valores iniciales para extrapolación
+                    minTemp = minOriginal;
+                    maxTemp = maxOriginal;
+                    
+                    // Actualizar información
+                    updateDataInfo();
+                    
+                    // Realizar extrapolación inicial
+                    updateExtrapolation();
+                    
+                    loadStatus.textContent = `Datos CSV cargados: ${originalData.length} mediciones`;
+                    loadStatus.className = "status-message success";
+                    
+                    setTimeout(() => {
+                        csvProgressContainer.style.display = 'none';
+                    }, 1000);
+                    
+                } catch (error) {
+                    loadStatus.textContent = 'Error al procesar el archivo: ' + error.message;
+                    loadStatus.className = "status-message error";
+                    csvProgressContainer.style.display = 'none';
+                    console.error(error);
+                }
+            };
+            
+            reader.readAsText(file);
         }
 
         // Procesar Excel con los datos deformados
@@ -1090,12 +1261,36 @@
             // Inicializar Python
             initializePyodide();
             
+            // Configurar eventos de pestañas
+            excelTab.addEventListener('click', function() {
+                excelTab.classList.add('active');
+                csvTab.classList.remove('active');
+                excelSection.style.display = 'block';
+                csvSection.style.display = 'none';
+                currentFileType = "excel";
+                loadStatus.textContent = "Modo Excel activado";
+            });
+            
+            csvTab.addEventListener('click', function() {
+                csvTab.classList.add('active');
+                excelTab.classList.remove('active');
+                csvSection.style.display = 'block';
+                excelSection.style.display = 'none';
+                currentFileType = "csv";
+                loadStatus.textContent = "Modo CSV activado";
+            });
+            
             // Configurar eventos
             excelFileInput.addEventListener('change', function() {
                 excelFile = this.files[0];
                 if (pyodide) {
                     loadExcelData();
                 }
+            });
+            
+            csvFileInput.addEventListener('change', function() {
+                csvFile = this.files[0];
+                loadCSV();
             });
             
             loadExcelBtn.addEventListener('click', function() {
@@ -1107,7 +1302,49 @@
                 }
             });
             
-            processExcelBtn.addEventListener('click', processExcel);
+            loadCsvBtn.addEventListener('click', function() {
+                if (csvFile) {
+                    loadCSV();
+                } else {
+                    loadStatus.textContent = "Seleccione un archivo CSV primero";
+                    loadStatus.className = "status-message error";
+                }
+            });
+            
+            downloadExcelBtn.addEventListener('click', processExcel);
+            
+            downloadCsvBtn.addEventListener('click', function() {
+                if (!temperatureChart || !temperatureChart.data.datasets[1].data.length) {
+                    downloadStatus.textContent = "Error: No hay datos para descargar";
+                    downloadStatus.className = "status-message error";
+                    return;
+                }
+                
+                try {
+                    const deformedData = temperatureChart.data.datasets[1].data;
+                    const csvContent = deformedData.map(value => 
+                        value.toFixed(1).replace('.', ',')
+                    ).join('\n');
+                    
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', 'datos_extrapolados.csv');
+                    link.style.visibility = 'hidden';
+                    
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    downloadStatus.textContent = "Descarga iniciada: datos_extrapolados.csv";
+                    downloadStatus.className = "status-message success";
+                } catch (error) {
+                    downloadStatus.textContent = "Error al descargar: " + error.message;
+                    downloadStatus.className = "status-message error";
+                    console.error(error);
+                }
+            });
             
             // Configurar inputs de rango
             minTempRange.addEventListener('input', () => {
@@ -1180,7 +1417,7 @@
             initChart();
             
             // Mensaje inicial
-            loadStatus.textContent = "Esperando datos...";
+            loadStatus.textContent = "Seleccione un archivo para comenzar";
             loadStatus.className = "status-message warning";
         });
 
@@ -1383,40 +1620,6 @@
                 temperatureChart.data.datasets[1].data = deformedData;
                 
                 temperatureChart.update();
-            }
-        }
-
-        // Descargar CSV
-        function downloadCSV() {
-            if (!temperatureChart || !temperatureChart.data.datasets[1].data.length) {
-                downloadStatus.textContent = "Error: No hay datos para descargar";
-                downloadStatus.className = "status-message error";
-                return;
-            }
-            
-            try {
-                const deformedData = temperatureChart.data.datasets[1].data;
-                const csvContent = deformedData.map(value => 
-                    value.toFixed(1).replace('.', ',')
-                ).join('\n');
-                
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.setAttribute('href', url);
-                link.setAttribute('download', 'datos_extrapolados.csv');
-                link.style.visibility = 'hidden';
-                
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                downloadStatus.textContent = "Descarga iniciada: datos_extrapolados.csv";
-                downloadStatus.className = "status-message success";
-            } catch (error) {
-                downloadStatus.textContent = "Error al descargar: " + error.message;
-                downloadStatus.className = "status-message error";
-                console.error(error);
             }
         }
     </script>
