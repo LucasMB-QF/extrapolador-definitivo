@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extrapolador Excel con Efecto Elástico</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pyodide@0.23.4/pyodide.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --success: #2ecc71;
+            --variation: #9b59b6;
+            --horizontal: #1abc9c;
+            --vertical: #f1c40f;
+            --elastic: #e67e22;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        header {
+            background: linear-gradient(to right, #2c3e50, #4a6491);
+            color: white;
+            padding: 25px 40px;
+            text-align: center;
+            border-bottom: 3px solid var(--accent);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 700px;
+            margin: 0 auto;
+            font-weight: 300;
+        }
+        
+        .main-content {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 30px;
+            gap: 20px;
+        }
+        
+        .controls {
+            flex: 1;
+            min-width: 350px;
+            padding: 20px;
+            background: var(--light);
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .chart-container {
+            flex: 2;
+            min-width: 600px;
+            height: 500px;
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            position: relative;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .control-group {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .control-group h2 {
+            margin-bottom: 20px;
+            color: var(--primary);
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .control-group h2 i {
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+        }
+        
+        label i {
+            margin-right: 8px;
+            font-size: 1.1em;
+        }
+        
+        input[type="text"], input[type="file"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            background: white;
+        }
+        
+        input[type="text"]:focus, input[type="file"]:focus, select:focus {
+            border-color: var(--secondary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+        
+        .range-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .range-container input[type="range"] {
+            flex: 1;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #ddd;
+            border-radius: 10px;
+            outline: none;
+        }
+        
+        .range-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        #minTempRange::-webkit-slider-thumb { 
+            background: var(--secondary);
+        }
+        #maxTempRange::-webkit-slider-thumb { 
+            background: var(--accent);
+        }
+        
+        button {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        button i {
+            margin-right: 8px;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 10px rgba(0,0,0,0.15);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        #loadBtn {
+            background: linear-gradient(to right, #3498db, #2980b9);
+        }
+        
+        #downloadBtn {
+            background: linear-gradient(to right, #2ecc71, #27ae60);
+        }
+        
+        #processExcelBtn {
+            background: linear-gradient(to right, #9b59b6, #8e44ad);
+        }
+        
+        .data-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .info-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .info-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .info-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: var(--primary);
+        }
+        
+        .info-card p {
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+        
+        .original-min { color: #3498db; }
+        .original-max { color: #e74c3c; }
+        .new-min { color: #2ecc71; }
+        .new-max { color: #f39c12; }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--dark);
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
+            background: rgba(236, 240, 241, 0.7);
+        }
+        
+        .status-message {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        
+        .progress-container {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+            display: none;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: var(--secondary);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .instructions {
+            background: linear-gradient(to right, #e3f2fd, #bbdefb);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .instructions h3 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+        
+        .instructions ul {
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+        
+        .instructions li {
+            margin-bottom: 5px;
+            position: relative;
+            padding-left: 25px;
+        }
+        
+        .instructions li:before {
+            content: "•";
+            color: var(--secondary);
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+            top: 0;
+            font-size: 1.2em;
+        }
+        
+        .deformation-controls {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+            margin-top: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+        }
+        
+        .deformation-controls h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 10px;
+        }
+        
+        .deformation-controls h3 i {
+            margin-right: 10px;
+            color: var(--variation);
+            font-size: 1.4em;
+        }
+        
+        .deformation-intensity {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 8px;
+        }
+        
+        .deformation-intensity input[type="range"] {
+            flex: 1;
+            height: 12px;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, #e0e0e0, #d0d0d0);
+            border-radius: 10px;
+            outline: none;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .deformation-intensity input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+            border: 2px solid white;
+        }
+        
+        #shapeDeformation::-webkit-slider-thumb {
+            background: var(--variation);
+        }
+        
+        #horizontalDeformation::-webkit-slider-thumb {
+            background: var(--horizontal);
+        }
+        
+        #verticalDeformation::-webkit-slider-thumb {
+            background: var(--vertical);
+        }
+        
+        #elasticEffect::-webkit-slider-thumb {
+            background: var(--elastic);
+        }
+        
+        .deformation-intensity span {
+            min-width: 40px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.9em;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(0,0,0,0.03);
+        }
+        
+        #deformationPercent {
+            color: var(--variation);
+            background: rgba(155, 89, 182, 0.1);
+        }
+        
+        #horizontalPercent {
+            color: var(--horizontal);
+            background: rgba(26, 188, 156, 0.1);
+        }
+        
+        #verticalPercent {
+            color: var(--vertical);
+            background: rgba(241, 196, 15, 0.1);
+        }
+        
+        #elasticPercent {
+            color: var(--elastic);
+            background: rgba(230, 126, 34, 0.1);
+        }
+        
+        .deformation-description {
+            margin-top: 5px;
+            font-size: 0.85rem;
+            color: #5a6268;
+            padding: 0 10px;
+            font-style: italic;
+        }
+        
+        .toggle-group {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 500;
+            background: rgba(0,0,0,0.03);
+            padding: 8px 12px;
+            border-radius: 20px;
+            transition: all 0.2s;
+        }
+        
+        .toggle-label:hover {
+            background: rgba(0,0,0,0.06);
+        }
+        
+        .toggle-label input {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        
+        .elastic-preview {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+            gap: 10px;
+        }
+        
+        .elastic-demo {
+            width: 20px;
+            height: 10px;
+            background: var(--elastic);
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            animation: elastic-pulse 1.5s infinite;
+            animation-delay: calc(var(--i) * 0.2s);
+        }
+        
+        @keyframes elastic-pulse {
+            0% { transform: scaleX(1); }
+            50% { transform: scaleX(0.4); }
+            100% { transform: scaleX(1); }
+        }
+        
+        .elastic-demo:before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                to right,
+                transparent,
+                transparent 3px,
+                rgba(255,255,255,0.5) 3px,
+                rgba(255,255,255,0.5) 6px
+            );
+        }
+        
+        @media (max-width: 1000px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .chart-container {
+                min-width: 100%;
+                height: 500px;
+            }
+        }
+        
+        .elastic-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        
+        .elastic-title i {
+            color: var(--elastic);
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .elastic-effect-info {
+            background: rgba(230, 126, 34, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border-left: 3px solid var(--elastic);
+        }
+        
+        .pyodide-loading {
+            background: #f1c40f;
+            color: #2c3e50;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 20px;
+            font-weight: bold;
+            display: none;
+        }
+        
+        .sheet-selection {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-file-excel"></i> Extrapolador Excel con Python</h1>
+            <p class="subtitle">Aplica deformaciones avanzadas manteniendo macros y fórmulas de Excel</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="controls">
+                <div class="instructions">
+                    <h3><i class="fas fa-lightbulb"></i> ¡Python en el navegador!</h3>
+                    <ul>
+                        <li>Sube tu archivo Excel (.xlsm) con macros</li>
+                        <li>Selecciona la hoja y columna a deformar</li>
+                        <li>Ajusta los parámetros de deformación</li>
+                        <li><strong>Mantén todas las fórmulas y macros intactas</strong></li>
+                        <li>Descarga el archivo modificado</li>
+                    </ul>
+                </div>
+                
+                <div class="control-group">
+                    <h2><i class="fas fa-file-upload"></i> Carga de Excel</h2>
+                    <div class="input-group">
+                        <label for="excelFile"><i class="fas fa-file-excel"></i> Seleccionar archivo Excel (.xlsm):</label>
+                        <input type="file" id="excelFile" accept=".xlsm">
+                    </div>
+                    
+                    <div class="sheet-selection">
+                        <div class="input-group">
+                            <label for="sheetSelect"><i class="fas fa-layer-group"></i> Hoja:</label>
+                            <select id="sheetSelect">
+                                <option value="">-- Seleccionar hoja --</option>
+                            </select>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="columnSelect"><i class="fas fa-columns"></i> Columna:</label>
+                            <select id="columnSelect">
+                                <option value="">-- Seleccionar columna --</option>
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                                <option value="D">D</option>
+                                <option value="E">E</option>
+                                <option value="F">F</option>
+                                <option value="G">G</option>
+                                <option value="H">H</option>
+                                <option value="I">I</option>
+                                <option value="J">J</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="progress-container" id="progressContainer">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                    <button id="loadExcelBtn"><i class="fas fa-file-import"></i> Cargar Datos de Excel</button>
+                    <div id="loadStatus" class="status-message">Esperando datos...</div>
+                </div>
+                
+                <div class="control-group">
+                    <h2><i class="fas fa-sliders-h"></i> Ajuste de Temperatura</h2>
+                    <div class="input-group">
+                        <label for="minTemp"><i class="fas fa-temperature-low"></i> Temperatura Mínima:</label>
+                        <input type="text" id="minTemp" placeholder="Ej: 15,5">
+                        <div class="range-container">
+                            <input type="range" id="minTempRange" min="-10" max="50" step="0.5">
+                            <span id="minTempValue">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="maxTemp"><i class="fas fa-temperature-high"></i> Temperatura Máxima:</label>
+                        <input type="text" id="maxTemp" placeholder="Ej: 32,0">
+                        <div class="range-container">
+                            <input type="range" id="maxTempRange" min="0" max="60" step="0.5">
+                            <span id="maxTempValue">--</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h2><i class="fas fa-file-download"></i> Exportar Resultados</h2>
+                    <button id="downloadBtn"><i class="fas fa-download"></i> Descargar CSV Extrapolado</button>
+                    <button id="processExcelBtn"><i class="fas fa-file-excel"></i> Procesar Excel</button>
+                    <div id="downloadStatus" class="status-message"></div>
+                </div>
+                
+                <div class="data-info">
+                    <div class="info-card">
+                        <h3><i class="fas fa-thermometer-quarter"></i> Mínimo Original</h3>
+                        <p id="originalMin" class="original-min">--</p>
+                    </div>
+                    <div class="info-card">
+                        <h3><i class="fas fa-thermometer-full"></i> Máximo Original</h3>
+                        <p id="originalMax" class="original-max">--</p>
+                    </div>
+                    <div class="info-card">
+                        <h3><i class="fas fa-thermometer-quarter"></i> Nuevo Mínimo</h3>
+                        <p id="newMin" class="new-min">--</p>
+                    </div>
+                    <div class="info-card">
+                        <h3><i class="fas fa-thermometer-full"></i> Nuevo Máximo</h3>
+                        <p id="newMax" class="new-max">--</p>
+                    </div>
+                </div>
+                
+                <div id="pyodideLoading" class="pyodide-loading">
+                    <i class="fas fa-sync fa-spin"></i> Inicializando Python...
+                </div>
+            </div>
+            
+            <div class="chart-area">
+                <div class="chart-container">
+                    <canvas id="temperatureChart"></canvas>
+                </div>
+                
+                <!-- Controles de deformación -->
+                <div class="deformation-controls">
+                    <h3><i class="fas fa-sliders-h"></i> Controles de Deformación</h3>
+                    
+                    <div class="toggle-group">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="smoothCurve" checked>
+                            <i class="fas fa-wave-circle"></i> Suavizar curva
+                        </label>
+                        <label class="toggle-label">
+                            <input type="checkbox" id="autoAdjust" checked>
+                            <i class="fas fa-magic"></i> Ajuste automático
+                        </label>
+                    </div>
+                    
+                    <div class="deformation-intensity">
+                        <span>Forma Original</span>
+                        <input type="range" id="shapeDeformation" min="0" max="100" value="50">
+                        <span>Máxima Deformación</span>
+                        <span id="deformationPercent">50%</span>
+                    </div>
+                    <div class="deformation-description">
+                        Deformación de forma - Altera subidas, bajadas y picos
+                    </div>
+                    
+                    <div class="deformation-intensity">
+                        <span>Comprimir</span>
+                        <input type="range" id="horizontalDeformation" min="0" max="100" value="50">
+                        <span>Expandir</span>
+                        <span id="horizontalPercent">50%</span>
+                    </div>
+                    <div class="deformation-description">
+                        Deformación horizontal - Controla la distribución temporal
+                    </div>
+                    
+                    <div class="deformation-intensity">
+                        <span>Menos Amplitud</span>
+                        <input type="range" id="verticalDeformation" min="0" max="100" value="50">
+                        <span>Más Amplitud</span>
+                        <span id="verticalPercent">50%</span>
+                    </div>
+                    <div class="deformation-description">
+                        Deformación vertical - Controla la amplitud de las variaciones
+                    </div>
+                    
+                    <div class="deformation-intensity">
+                        <span>Sin Efecto</span>
+                        <input type="range" id="elasticEffect" min="0" max="100" value="70">
+                        <span>Máximo Efecto</span>
+                        <span id="elasticPercent">70%</span>
+                    </div>
+                    <div class="deformation-description">
+                        <div class="elastic-title">
+                            <i class="fas fa-band-aid"></i> Efecto Elástico - Crea ondulaciones pronunciadas en zonas planas
+                        </div>
+                        <div class="elastic-preview">
+                            <div class="elastic-demo" style="--i: 0"></div>
+                            <div class="elastic-demo" style="--i: 1"></div>
+                            <div class="elastic-demo" style="--i: 2"></div>
+                            <div class="elastic-demo" style="--i: 3"></div>
+                            <div class="elastic-demo" style="--i: 4"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p><i class="fas fa-info-circle"></i> Extrapolador Excel con Python | Mantiene macros y fórmulas | Pyodide 0.23.4</p>
+        </footer>
+    </div>
+
+    <script>
+        // Variables globales
+        let originalData = [];
+        let minOriginal = 0;
+        let maxOriginal = 0;
+        let minTemp = 0;
+        let maxTemp = 0;
+        let temperatureChart = null;
+        let deformationLevel = 0.5;
+        let horizontalDeformation = 0.5;
+        let verticalDeformation = 0.5;
+        let elasticEffect = 0.7;
+        let noiseSeed = Date.now();
+        let smoothCurve = true;
+        let autoAdjust = true;
+        let pyodide = null;
+        let excelFile = null;
+        let selectedSheet = "";
+        let selectedColumn = "";
+        let excelData = {};
+
+        // Elementos del DOM
+        const excelFileInput = document.getElementById('excelFile');
+        const sheetSelect = document.getElementById('sheetSelect');
+        const columnSelect = document.getElementById('columnSelect');
+        const loadExcelBtn = document.getElementById('loadExcelBtn');
+        const minTempInput = document.getElementById('minTemp');
+        const maxTempInput = document.getElementById('maxTemp');
+        const minTempRange = document.getElementById('minTempRange');
+        const maxTempRange = document.getElementById('maxTempRange');
+        const minTempValue = document.getElementById('minTempValue');
+        const maxTempValue = document.getElementById('maxTempValue');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const processExcelBtn = document.getElementById('processExcelBtn');
+        const originalMinElem = document.getElementById('originalMin');
+        const originalMaxElem = document.getElementById('originalMax');
+        const newMinElem = document.getElementById('newMin');
+        const newMaxElem = document.getElementById('newMax');
+        const loadStatus = document.getElementById('loadStatus');
+        const downloadStatus = document.getElementById('downloadStatus');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const shapeDeformationSlider = document.getElementById('shapeDeformation');
+        const horizontalDeformationSlider = document.getElementById('horizontalDeformation');
+        const verticalDeformationSlider = document.getElementById('verticalDeformation');
+        const elasticEffectSlider = document.getElementById('elasticEffect');
+        const deformationPercent = document.getElementById('deformationPercent');
+        const horizontalPercent = document.getElementById('horizontalPercent');
+        const verticalPercent = document.getElementById('verticalPercent');
+        const elasticPercent = document.getElementById('elasticPercent');
+        const smoothCurveCheckbox = document.getElementById('smoothCurve');
+        const autoAdjustCheckbox = document.getElementById('autoAdjust');
+        const pyodideLoading = document.getElementById('pyodideLoading');
+
+        // Inicializar Python con Pyodide
+        async function initializePyodide() {
+            pyodideLoading.style.display = 'block';
+            loadStatus.textContent = "Cargando entorno Python...";
+            loadStatus.className = "status-message warning";
+            
+            try {
+                pyodide = await loadPyodide({
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.23.4/full/"
+                });
+                
+                // Instalar paquetes necesarios
+                await pyodide.loadPackage(['micropip']);
+                await pyodide.runPythonAsync(`
+                    import micropip
+                    await micropip.install('openpyxl')
+                `);
+                
+                pyodideLoading.style.display = 'none';
+                loadStatus.textContent = "Python listo para procesar Excel";
+                loadStatus.className = "status-message success";
+                
+                // Cargar archivo Excel si ya se seleccionó
+                if (excelFile) {
+                    loadExcelData();
+                }
+            } catch (error) {
+                pyodideLoading.style.display = 'none';
+                loadStatus.textContent = "Error al cargar Python: " + error.message;
+                loadStatus.className = "status-message error";
+                console.error(error);
+            }
+        }
+
+        // Cargar datos de Excel usando Python
+        async function loadExcelData() {
+            if (!pyodide || !excelFile) return;
+            
+            try {
+                loadStatus.textContent = "Procesando Excel con Python...";
+                loadStatus.className = "status-message warning";
+                
+                // Leer archivo como ArrayBuffer
+                const arrayBuffer = await excelFile.arrayBuffer();
+                const bytes = new Uint8Array(arrayBuffer);
+                
+                // Pasar a Python
+                pyodide.FS.writeFile(excelFile.name, bytes);
+                
+                // Ejecutar script Python para leer el Excel
+                const result = pyodide.runPython(`
+                    from openpyxl import load_workbook
+                    from js import document, console
+                    
+                    filename = '${excelFile.name}'
+                    wb = load_workbook(filename, keep_vba=True)
+                    sheets = list(wb.sheetnames)
+                    
+                    # Almacenar datos de todas las hojas
+                    excel_data = {}
+                    for sheet_name in sheets:
+                        ws = wb[sheet_name]
+                        sheet_data = {}
+                        
+                        # Leer todas las columnas con datos
+                        for col in ws.iter_cols(min_row=2):
+                            col_letter = col[0].column_letter
+                            col_values = []
+                            
+                            for cell in col:
+                                if cell.value is None:
+                                    break
+                                col_values.append(cell.value)
+                            
+                            sheet_data[col_letter] = col_values
+                        
+                        excel_data[sheet_name] = sheet_data
+                    
+                    # Devolver datos
+                    {
+                        'sheets': sheets,
+                        'excel_data': excel_data
+                    }
+                `);
+                
+                // Guardar datos
+                excelData = result.excel_data.toJs();
+                
+                // Actualizar selector de hojas
+                sheetSelect.innerHTML = '<option value="">-- Seleccionar hoja --</option>';
+                result.sheets.forEach(sheet => {
+                    const option = document.createElement('option');
+                    option.value = sheet;
+                    option.textContent = sheet;
+                    sheetSelect.appendChild(option);
+                });
+                
+                loadStatus.textContent = "Excel cargado correctamente";
+                loadStatus.className = "status-message success";
+                
+                // Manejar selección de hoja
+                sheetSelect.onchange = function() {
+                    selectedSheet = this.value;
+                    if (selectedSheet && excelData[selectedSheet]) {
+                        // Actualizar gráfico con datos predeterminados
+                        const defaultCol = 'A';
+                        if (excelData[selectedSheet][defaultCol]) {
+                            originalData = excelData[selectedSheet][defaultCol];
+                            updateDataInfo();
+                            applyShapeDeformation();
+                        }
+                    }
+                };
+                
+                // Manejar selección de columna
+                columnSelect.onchange = function() {
+                    selectedColumn = this.value;
+                    if (selectedSheet && selectedColumn && excelData[selectedSheet][selectedColumn]) {
+                        originalData = excelData[selectedSheet][selectedColumn];
+                        updateDataInfo();
+                        applyShapeDeformation();
+                    }
+                };
+                
+            } catch (error) {
+                loadStatus.textContent = "Error al procesar Excel: " + error.message;
+                loadStatus.className = "status-message error";
+                console.error(error);
+            }
+        }
+
+        // Procesar Excel con los datos deformados
+        async function processExcel() {
+            if (!pyodide || !excelFile || !selectedSheet || !selectedColumn) {
+                downloadStatus.textContent = "Seleccione archivo, hoja y columna";
+                downloadStatus.className = "status-message error";
+                return;
+            }
+            
+            try {
+                downloadStatus.textContent = "Procesando Excel con Python...";
+                downloadStatus.className = "status-message warning";
+                
+                // Obtener datos deformados
+                const deformedData = temperatureChart.data.datasets[1].data;
+                
+                // Crear array de bytes del archivo original
+                const arrayBuffer = await excelFile.arrayBuffer();
+                const bytes = new Uint8Array(arrayBuffer);
+                
+                // Pasar a Python
+                pyodide.FS.writeFile(excelFile.name, bytes);
+                
+                // Ejecutar script Python para modificar el Excel
+                await pyodide.runPythonAsync(`
+                    from openpyxl import load_workbook
+                    from js import deformedData, excelFile, selectedSheet, selectedColumn
+                    import json
+                    
+                    filename = excelFile.name
+                    wb = load_workbook(filename, keep_vba=True)
+                    ws = wb[selectedSheet]
+                    
+                    # Convertir datos deformados a float
+                    deformed_values = [float(x) for x in json.loads(deformedData)]
+                    
+                    # Actualizar la columna seleccionada
+                    for i, value in enumerate(deformed_values, start=2):
+                        cell = ws[selectedColumn + str(i)]
+                        # Mantener formato original
+                        if isinstance(cell.value, float):
+                            cell.value = round(value, 6)  # Redondear a 6 decimales
+                        else:
+                            cell.value = value
+                    
+                    # Guardar el archivo modificado
+                    output_filename = 'modified_' + filename
+                    wb.save(output_filename)
+                `, {
+                    deformedData: JSON.stringify(deformedData),
+                    excelFile: { name: excelFile.name },
+                    selectedSheet: selectedSheet,
+                    selectedColumn: selectedColumn
+                });
+                
+                // Obtener archivo modificado
+                const outputBytes = pyodide.FS.readFile('modified_' + excelFile.name, { encoding: 'binary' });
+                const blob = new Blob([outputBytes], { type: 'application/vnd.ms-excel.sheet.macroEnabled.12' });
+                
+                // Crear enlace de descarga
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'modified_' + excelFile.name;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                downloadStatus.textContent = "Excel modificado descargado";
+                downloadStatus.className = "status-message success";
+                
+            } catch (error) {
+                downloadStatus.textContent = "Error al procesar Excel: " + error.message;
+                downloadStatus.className = "status-message error";
+                console.error(error);
+            }
+        }
+
+        // Función de ruido pseudoaleatorio
+        function noise(index) {
+            const x = Math.sin(index * 12.9898 + noiseSeed) * 43758.5453;
+            return x - Math.floor(x);
+        }
+
+        // Función para suavizar datos
+        function smoothData(data, windowSize = 3) {
+            const smoothed = [];
+            for (let i = 0; i < data.length; i++) {
+                const start = Math.max(0, i - Math.floor(windowSize/2));
+                const end = Math.min(data.length, i + Math.ceil(windowSize/2));
+                let sum = 0;
+                for (let j = start; j < end; j++) {
+                    sum += data[j];
+                }
+                smoothed[i] = sum / (end - start);
+            }
+            return smoothed;
+        }
+
+        // Detectar zonas planas
+        function detectFlatZones(data, threshold = 0.01) {
+            const flatZones = [];
+            const derivative = [];
+            
+            for (let i = 1; i < data.length; i++) {
+                derivative[i] = Math.abs(data[i] - data[i-1]);
+            }
+            
+            for (let i = 1; i < derivative.length; i++) {
+                if (derivative[i] < threshold * (maxTemp - minTemp)) {
+                    flatZones.push(i);
+                }
+            }
+            
+            return flatZones;
+        }
+
+        // Aplicar efecto elástico
+        function applyElasticEffect(data, intensity) {
+            if (intensity <= 0) return data;
+            
+            const newData = [...data];
+            const flatZones = detectFlatZones(data);
+            const amplitude = intensity * 0.15 * (maxTemp - minTemp);
+            
+            flatZones.forEach(index => {
+                const wave1 = Math.sin(index * 0.5) * amplitude * noise(index);
+                const wave2 = Math.cos(index * 0.8) * amplitude * 0.7 * noise(index*1.3);
+                const wave3 = Math.sin(index * 1.2) * amplitude * 0.5 * noise(index*1.7);
+                
+                const combinedWave = (wave1 + wave2 + wave3) / 2.2;
+                newData[index] += combinedWave;
+                
+                if (newData[index] < minTemp) newData[index] = minTemp;
+                if (newData[index] > maxTemp) newData[index] = maxTemp;
+            });
+            
+            return newData;
+        }
+
+        // Inicializar la aplicación
+        document.addEventListener('DOMContentLoaded', () => {
+            // Inicializar Python
+            initializePyodide();
+            
+            // Configurar eventos
+            excelFileInput.addEventListener('change', function() {
+                excelFile = this.files[0];
+                if (pyodide) {
+                    loadExcelData();
+                }
+            });
+            
+            loadExcelBtn.addEventListener('click', function() {
+                if (excelFile && pyodide) {
+                    loadExcelData();
+                } else if (!excelFile) {
+                    loadStatus.textContent = "Seleccione un archivo Excel primero";
+                    loadStatus.className = "status-message error";
+                }
+            });
+            
+            processExcelBtn.addEventListener('click', processExcel);
+            
+            // Configurar inputs de rango
+            minTempRange.addEventListener('input', () => {
+                minTempInput.value = minTempRange.value.replace('.', ',');
+                minTempValue.textContent = minTempRange.value.replace('.', ',') + "°C";
+                updateExtrapolation();
+            });
+            
+            maxTempRange.addEventListener('input', () => {
+                maxTempInput.value = maxTempRange.value.replace('.', ',');
+                maxTempValue.textContent = maxTempRange.value.replace('.', ',') + "°C";
+                updateExtrapolation();
+            });
+            
+            minTempInput.addEventListener('input', () => {
+                const value = parseFloat(minTempInput.value.replace(',', '.')) || 0;
+                minTempRange.value = value;
+                minTempValue.textContent = minTempInput.value + "°C";
+                updateExtrapolation();
+            });
+            
+            maxTempInput.addEventListener('input', () => {
+                const value = parseFloat(maxTempInput.value.replace(',', '.')) || 0;
+                maxTempRange.value = value;
+                maxTempValue.textContent = maxTempInput.value + "°C";
+                updateExtrapolation();
+            });
+            
+            // Controles de deformación
+            shapeDeformationSlider.addEventListener('input', () => {
+                deformationLevel = shapeDeformationSlider.value / 100;
+                deformationPercent.textContent = shapeDeformationSlider.value + '%';
+                applyShapeDeformation();
+            });
+            
+            horizontalDeformationSlider.addEventListener('input', () => {
+                horizontalDeformation = horizontalDeformationSlider.value / 100;
+                horizontalPercent.textContent = horizontalDeformationSlider.value + '%';
+                applyShapeDeformation();
+            });
+            
+            verticalDeformationSlider.addEventListener('input', () => {
+                verticalDeformation = verticalDeformationSlider.value / 100;
+                verticalPercent.textContent = verticalDeformationSlider.value + '%';
+                applyShapeDeformation();
+            });
+            
+            elasticEffectSlider.addEventListener('input', () => {
+                elasticEffect = elasticEffectSlider.value / 100;
+                elasticPercent.textContent = elasticEffectSlider.value + '%';
+                applyShapeDeformation();
+            });
+            
+            // Controles de opciones
+            smoothCurveCheckbox.addEventListener('change', () => {
+                smoothCurve = smoothCurveCheckbox.checked;
+                applyShapeDeformation();
+            });
+            
+            autoAdjustCheckbox.addEventListener('change', () => {
+                autoAdjust = autoAdjustCheckbox.checked;
+                if (autoAdjust && originalData.length > 0) {
+                    minTempInput.value = minOriginal.toFixed(1).replace('.', ',');
+                    maxTempInput.value = maxOriginal.toFixed(1).replace('.', ',');
+                    updateExtrapolation();
+                }
+            });
+            
+            // Inicializar gráfico
+            initChart();
+            
+            // Mensaje inicial
+            loadStatus.textContent = "Esperando datos...";
+            loadStatus.className = "status-message warning";
+        });
+
+        // Inicializar gráfico
+        function initChart() {
+            const ctx = document.getElementById('temperatureChart').getContext('2d');
+            temperatureChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Datos Originales',
+                            data: [],
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            borderWidth: 3,
+                            pointRadius: 0,
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: 'Curva Extrapolada',
+                            data: [],
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            borderWidth: 3,
+                            pointRadius: 0,
+                            tension: 0.5,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Temperatura (°C)',
+                                font: {
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Mediciones',
+                                font: {
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                maxTicksLimit: 20
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(1).replace('.', ',')}°C`;
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    animation: {
+                        duration: 300,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        // Actualizar información de datos
+        function updateDataInfo() {
+            if (originalData.length === 0) return;
+            
+            minOriginal = Math.min(...originalData);
+            maxOriginal = Math.max(...originalData);
+            
+            originalMinElem.textContent = minOriginal.toFixed(1).replace('.', ',') + "°C";
+            originalMaxElem.textContent = maxOriginal.toFixed(1).replace('.', ',') + "°C";
+            
+            minTemp = minOriginal;
+            maxTemp = maxOriginal;
+            
+            minTempInput.value = minTemp.toFixed(1).replace('.', ',');
+            maxTempInput.value = maxTemp.toFixed(1).replace('.', ',');
+            minTempRange.value = minTemp;
+            maxTempRange.value = maxTemp;
+            minTempValue.textContent = minTemp.toFixed(1).replace('.', ',') + "°C";
+            maxTempValue.textContent = maxTemp.toFixed(1).replace('.', ',') + "°C";
+            newMinElem.textContent = minTemp.toFixed(1).replace('.', ',') + "°C";
+            newMaxElem.textContent = maxTemp.toFixed(1).replace('.', ',') + "°C";
+        }
+
+        // Extrapolar datos
+        function updateExtrapolation() {
+            if (originalData.length === 0) return;
+            
+            minTemp = parseFloat(minTempInput.value.replace(',', '.'));
+            maxTemp = parseFloat(maxTempInput.value.replace(',', '.'));
+            
+            if (isNaN(minTemp) || isNaN(maxTemp) || minTemp >= maxTemp) {
+                return;
+            }
+            
+            minTempRange.value = minTemp;
+            maxTempRange.value = maxTemp;
+            minTempValue.textContent = minTemp.toFixed(1).replace('.', ',') + "°C";
+            maxTempValue.textContent = maxTemp.toFixed(1).replace('.', ',') + "°C";
+            newMinElem.textContent = minTemp.toFixed(1).replace('.', ',') + "°C";
+            newMaxElem.textContent = maxTemp.toFixed(1).replace('.', ',') + "°C";
+            
+            applyShapeDeformation();
+        }
+        
+        // Aplicar deformación
+        function applyShapeDeformation() {
+            if (originalData.length === 0) return;
+            
+            const originalRange = maxOriginal - minOriginal;
+            const newRange = maxTemp - minTemp;
+            
+            let deformedData = [];
+            
+            if (originalRange === 0) {
+                const avg = (minTemp + maxTemp) / 2;
+                deformedData = originalData.map(() => avg);
+            } else {
+                deformedData = originalData.map(value => {
+                    const normalized = (value - minOriginal) / originalRange;
+                    return minTemp + normalized * newRange;
+                });
+            }
+            
+            // Aplicar deformación avanzada
+            if (deformationLevel > 0 || horizontalDeformation > 0 || verticalDeformation > 0) {
+                const amplitude = (maxTemp - minTemp) * 0.3 * deformationLevel * verticalDeformation;
+                const frequency = 0.05 + deformationLevel * 0.1;
+                const horizontalFactor = 1 + horizontalDeformation * 0.5;
+                
+                deformedData = deformedData.map((value, i) => {
+                    const noiseFactor = noise(i) * 2 - 1;
+                    const wave1 = Math.sin(i * frequency * horizontalFactor) * amplitude;
+                    const wave2 = Math.cos(i * frequency * 0.7 * horizontalFactor) * amplitude * 0.6;
+                    const deformation = noiseFactor * amplitude * 0.5 + wave1 + wave2;
+                    
+                    let newValue = value + deformation;
+                    if (newValue < minTemp) newValue = minTemp;
+                    if (newValue > maxTemp) newValue = maxTemp;
+                    return newValue;
+                });
+            }
+            
+            // Aplicar efecto elástico
+            if (elasticEffect > 0) {
+                deformedData = applyElasticEffect(deformedData, elasticEffect);
+            }
+            
+            // Suavizar
+            if (smoothCurve) {
+                deformedData = smoothData(deformedData);
+            }
+            
+            // Actualizar gráfico
+            updateChart(deformedData);
+        }
+
+        // Actualizar gráfico
+        function updateChart(deformedData = []) {
+            if (temperatureChart && originalData.length > 0) {
+                const labels = Array.from({length: originalData.length}, (_, i) => i % 50 === 0 ? `M${i+1}` : '');
+                
+                temperatureChart.data.labels = labels;
+                temperatureChart.data.datasets[0].data = originalData;
+                temperatureChart.data.datasets[1].data = deformedData;
+                
+                temperatureChart.update();
+            }
+        }
+
+        // Descargar CSV
+        function downloadCSV() {
+            if (!temperatureChart || !temperatureChart.data.datasets[1].data.length) {
+                downloadStatus.textContent = "Error: No hay datos para descargar";
+                downloadStatus.className = "status-message error";
+                return;
+            }
+            
+            try {
+                const deformedData = temperatureChart.data.datasets[1].data;
+                const csvContent = deformedData.map(value => 
+                    value.toFixed(1).replace('.', ',')
+                ).join('\n');
+                
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'datos_extrapolados.csv');
+                link.style.visibility = 'hidden';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                downloadStatus.textContent = "Descarga iniciada: datos_extrapolados.csv";
+                downloadStatus.className = "status-message success";
+            } catch (error) {
+                downloadStatus.textContent = "Error al descargar: " + error.message;
+                downloadStatus.className = "status-message error";
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
