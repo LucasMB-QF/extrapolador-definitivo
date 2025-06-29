@@ -551,12 +551,12 @@
             100% { transform: scale(1); }
         }
         
-        .elastic-effect-info {
+        .elastic-effect-container {
+            margin-top: 20px;
+            padding: 20px;
             background: rgba(230, 126, 34, 0.1);
-            padding: 10px;
             border-radius: 8px;
-            margin-top: 10px;
-            border-left: 3px solid var(--elastic);
+            border-left: 4px solid var(--elastic);
         }
         
         .pyodide-loading {
@@ -614,6 +614,18 @@
         .tab.active {
             background: var(--secondary);
             color: white;
+        }
+        
+        .elastic-control-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .elastic-control-header i {
+            font-size: 1.5rem;
+            color: var(--elastic);
         }
     </style>
 </head>
@@ -798,6 +810,14 @@
                     <div class="deformation-description">
                         Deformación vertical - Controla la amplitud de las variaciones
                     </div>
+                </div>
+                
+                <!-- Controles de efecto elástico -->
+                <div class="elastic-effect-container">
+                    <div class="elastic-control-header">
+                        <i class="fas fa-band-aid"></i>
+                        <h3>Control de Efecto Elástico</h3>
+                    </div>
                     
                     <div class="deformation-intensity">
                         <span>Sin Efecto</span>
@@ -805,17 +825,17 @@
                         <span>Máximo Efecto</span>
                         <span id="elasticPercent">70%</span>
                     </div>
+                    
                     <div class="deformation-description">
-                        <div class="elastic-title">
-                            <i class="fas fa-band-aid"></i> Efecto Elástico - Crea ondulaciones pronunciadas en zonas planas
-                        </div>
-                        <div class="elastic-preview">
-                            <div class="elastic-demo" style="--i: 0"></div>
-                            <div class="elastic-demo" style="--i: 1"></div>
-                            <div class="elastic-demo" style="--i: 2"></div>
-                            <div class="elastic-demo" style="--i: 3"></div>
-                            <div class="elastic-demo" style="--i: 4"></div>
-                        </div>
+                        Crea ondulaciones naturales en zonas planas para simular variaciones realistas
+                    </div>
+                    
+                    <div class="elastic-preview">
+                        <div class="elastic-demo" style="--i: 0"></div>
+                        <div class="elastic-demo" style="--i: 1"></div>
+                        <div class="elastic-demo" style="--i: 2"></div>
+                        <div class="elastic-demo" style="--i: 3"></div>
+                        <div class="elastic-demo" style="--i: 4"></div>
                     </div>
                 </div>
             </div>
@@ -988,8 +1008,12 @@
                 
                 excelProgressBar.style.width = '70%';
                 
-                // Guardar datos
-                excelData = result.excel_data.toJs();
+                // Guardar datos - CORRECCIÓN: Verificar que result existe
+                if (result && result.excel_data) {
+                    excelData = result.excel_data.toJs();
+                } else {
+                    throw new Error("El script de Python no retornó los datos esperados");
+                }
                 
                 // Actualizar selector de hojas
                 sheetSelect.innerHTML = '<option value="">-- Seleccionar hoja --</option>';
@@ -1233,7 +1257,7 @@
             return flatZones;
         }
 
-        // Aplicar efecto elástico
+        // Aplicar efecto elástico - CORREGIDO
         function applyElasticEffect(data, intensity) {
             if (intensity <= 0) return data;
             
@@ -1249,6 +1273,7 @@
                 const combinedWave = (wave1 + wave2 + wave3) / 2.2;
                 newData[index] += combinedWave;
                 
+                // Asegurar que no exceda los límites
                 if (newData[index] < minTemp) newData[index] = minTemp;
                 if (newData[index] > maxTemp) newData[index] = maxTemp;
             });
